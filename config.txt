@@ -1,0 +1,27 @@
+# =====================================================================
+# SN MOBIDEER Bridge - Config File
+# =====================================================================
+# Nayi PC pe sirf ye file kholo aur paths update karo.
+# Baaki kuch nahi karna padega.
+# =====================================================================
+
+# BarTender Software ka path (usually same rehta hai on all PCs)
+BARTENDER_EXE = C:\Program Files\Seagull\BarTender 2022\bartend.exe
+
+# BTW Label file (ab ye project folder mein hi hai - DO NOT CHANGE)
+# BTW_FILEPATH = AUTO  <- ye line waise hi rehne do
+
+# CSV output folder (labels data yahan save hoga)
+# By default project folder mein hi save hoga - DO NOT CHANGE
+# CSV_FOLDER = AUTO   <- ye line waise hi rehne do
+
+# Bridge Port (default 7788)
+PORT = 7788
+
+# =====================================================================
+# NAYI PC PE KYA KARNA HAI:
+# 1. BarTender install karo
+# 2. Agar BarTender ka path upar wale se alag ho to woh path likhdo
+# 3. bridge.py chalao (Start_Bridge.bat)
+# 4. Done!
+# =====================================================================
