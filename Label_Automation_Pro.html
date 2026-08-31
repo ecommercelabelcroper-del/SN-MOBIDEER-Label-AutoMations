@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SN MOBIDEER Label Automation Pro</title>
+<meta name="description" content="SN MOBIDEER Label Automation Pro — Flipkart consignment label printing system"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+:root{
+  --bg:#f0f4f8;--surface:rgba(255,255,255,0.92);
+  --primary:#2563eb;--primary-h:#1d4ed8;
+  --success:#10b981;--danger:#ef4444;--warn:#f59e0b;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;
+  --th-bg:#f1f5f9;--hover:#f8fafc;
+  --shadow:0 8px 24px rgba(0,0,0,0.09);
+  --radius:12px;--radius-sm:8px;
+}
+body.dark{
+  --bg:#0f172a;--surface:rgba(22,33,55,0.95);
+  --primary:#3b82f6;--text:#f1f5f9;
+  --muted:#94a3b8;--border:#334155;
+  --th-bg:#1e293b;--hover:#1e293b;
+  --shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+/* ── HEADER ── */
+#header{
+  display:flex;align-items:center;gap:12px;padding:14px 20px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;
+  box-shadow:var(--shadow);
+}
+#app-title{
+  font-size:1.25rem;font-weight:700;
+  background:linear-gradient(90deg,#1e3a8a,#3b82f6);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;flex:1;
+}
+#bridge-badge{display:flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:5px 12px;border-radius:20px;background:var(--th-bg);border:1px solid var(--border)}
+#bridge-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);transition:background .4s}
+#bridge-dot.online{background:var(--success)}
+#sync-btn{display:none;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;background:var(--warn);color:#fff;border:none;font-weight:600;font-size:.8rem;cursor:pointer;transition:opacity .2s}
+#sync-btn:hover{opacity:.85}
+#dark-toggle{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem;color:var(--text);transition:all .2s}
+/* ── MAIN ── */
+#main{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 57px);overflow:hidden}
+/* ── LEFT PANEL ── */
+#left{display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--surface);overflow:hidden}
+#left-head{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)}
+#left-head h3{flex:1;font-size:.95rem;font-weight:700}
+.icon-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:.85rem;color:var(--muted);transition:all .2s}
+.icon-btn:hover{background:var(--hover);color:var(--text)}
+#db-search-wrap{padding:10px 14px;border-bottom:1px solid var(--border)}
+#db-search{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:.82rem;font-family:inherit}
+#db-search:focus{outline:none;border-color:var(--primary)}
+#db-results{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin:0 14px 8px;max-height:180px;overflow-y:auto;display:none}
+.db-result-row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);font-size:.8rem}
+.db-result-row:last-child{border-bottom:none}
+.db-result-sku{font-weight:700;word-break:break-all}
+.db-result-mat{color:var(--muted);font-size:.74rem}
+.db-print-btn{padding:3px 10px;border-radius:6px;background:var(--primary);color:#fff;border:none;font-size:.75rem;cursor:pointer;font-weight:600}
+#cons-list{flex:1;overflow-y:auto;padding:10px 10px}
+/* consignment card */
+.cons-card{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all .2s;position:relative;margin-bottom:8px}
+.cons-card:hover .cons-remove{opacity:1}
+.cons-card.active{border-color:var(--primary);background:rgba(37,99,235,.07)}
+.cons-card-top{display:flex;align-items:center;gap:8px}
+.cons-status-icon{font-size:1.1rem;flex-shrink:0}
+.cons-id{font-weight:700;font-size:.9rem;flex:1}
+.cons-remove{position:absolute;top:8px;right:8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;opacity:0;transition:opacity .2s;padding:2px}
+.cons-remove:hover{color:var(--danger)}
+.cons-meta{font-size:.75rem;color:var(--muted)}
+.cons-boxes{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.box-chip{font-size:.7rem;padding:2px 7px;border-radius:10px;background:var(--th-bg);border:1px solid var(--border);font-weight:600}
+.box-more{font-size:.7rem;color:var(--muted);padding:2px 6px}
+/* ── RIGHT PANEL ── */
+#right{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+/* empty / upload state */
+#empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:40px}
+.upload-zones{display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%;max-width:680px}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface)}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--primary);background:rgba(37,99,235,.05)}
+.drop-zone .dz-icon{font-size:2.2rem;margin-bottom:10px}
+.drop-zone h4{font-size:.95rem;font-weight:700;margin-bottom:6px}
+.drop-zone p{font-size:.78rem;color:var(--muted)}
+.drop-zone input[type=file]{display:none}
+/* consignment view */
+#cons-view{flex:1;display:none;flex-direction:column;overflow:hidden}
+/* stats */
+#stats-bar{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface)}
+.stat-item{flex:1;padding:12px 10px;text-align:center;border-right:1px solid var(--border)}
+.stat-item:last-child{border-right:none}
+.stat-val{font-size:1.3rem;font-weight:700;color:var(--primary)}
+.stat-lbl{font-size:.7rem;color:var(--muted);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+/* toolbar */
+#toolbar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap}
+#tbl-search{flex:1;min-width:140px;padding:7px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:.83rem;font-family:inherit}
+#tbl-search:focus{outline:none;border-color:var(--primary)}
+.tb-btn{padding:7px 14px;border-radius:var(--radius-sm);border:none;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.tb-btn.primary{background:var(--primary);color:#fff}
+.tb-btn.primary:hover{background:var(--primary-h)}
+.tb-btn.success{background:var(--success);color:#fff}
+.tb-btn.warn{background:var(--warn);color:#fff}
+.tb-btn.outline{background:none;border:1px solid var(--border);color:var(--text)}
+.tb-btn.outline:hover{background:var(--hover)}
+/* table */
+#tbl-wrap{flex:1;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th{background:var(--th-bg);padding:10px 12px;text-align:left;font-weight:700;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);position:sticky;top:0;z-index:10;border-bottom:2px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-weight:700;vertical-align:middle}
+tr:hover td{background:var(--hover)}
+td.sku-cell{word-break:break-all;max-width:200px}
+.fsn-sub{font-size:.72rem;color:var(--muted);font-weight:400;margin-top:2px}
+.new-badge{display:inline-block;font-size:.65rem;padding:1px 6px;border-radius:8px;background:var(--warn);color:#fff;font-weight:700;margin-left:5px;vertical-align:middle}
+.mat-input,.qty-input{padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-family:inherit;font-weight:700;font-size:.82rem;width:100%}
+.mat-input{min-width:140px}
+.qty-input{width:70px;text-align:center}
+.mat-input:focus,.qty-input:focus{outline:none;border-color:var(--primary)}
+.print-btn{padding:5px 12px;border-radius:6px;background:var(--primary);color:#fff;border:none;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s}
+.print-btn:hover{background:var(--primary-h)}
+.printed-wrap{display:flex;align-items:center;gap:6px}
+.printed-lbl{font-size:.78rem;color:var(--success);font-weight:700}
+.reprint-btn{padding:3px 9px;border-radius:6px;background:none;border:1px solid var(--border);font-size:.72rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s}
+.reprint-btn:hover{border-color:var(--primary);color:var(--primary)}
+/* checkbox col */
+.cb-cell{width:36px;text-align:center}
+input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--primary)}
+/* animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.cons-card{animation:fadeIn .2s ease}
+/* master count badge */
+#master-count{font-size:.75rem;color:var(--muted);margin-left:auto;padding:3px 8px;background:var(--th-bg);border-radius:20px;border:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="app-title">SN MOBIDEER Label Automation Pro</div>
+  <span id="master-count">Master: 0 SKUs</span>
+  <button onclick="exportMasterCSV()" title="Export master DB to CSV — save this file as Master_SKU_Database.csv in your automation folder" style="font-size:.75rem;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:var(--th-bg);color:var(--fg);cursor:pointer">💾 Save Master</button>
+  <div id="bridge-badge"><div id="bridge-dot"></div><span id="bridge-lbl">Checking…</span></div>
+  <button id="sync-btn" onclick="syncPending()">🔄 Sync Pending <span id="sync-count">0</span></button>
+  <button id="dark-toggle" onclick="toggleDark()">🌙</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT -->
+  <div id="left">
+    <div id="left-head">
+      <h3>📋 Consignments</h3>
+      <button class="icon-btn" onclick="clearAll()" title="Clear all">🗑️</button>
+      <button class="icon-btn" onclick="document.getElementById('cons-file-input').click()" title="Add consignment">+ Add</button>
+      <input type="file" id="cons-file-input" accept=".csv,.xlsx,.xls" multiple style="display:none" onchange="handleConsFiles(this.files)"/>
+    </div>
+    <div id="db-search-wrap">
+      <input id="db-search" placeholder="🔍 Search master DB (SKU / FSN)…" oninput="dbSearch(this.value)"/>
+    </div>
+    <div id="db-results"></div>
+    <div id="cons-list"></div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right">
+    <!-- EMPTY STATE -->
+    <div id="empty-state">
+      <div style="text-align:center">
+        <div style="font-size:3rem">📦</div>
+        <h2 style="font-size:1.3rem;font-weight:700;margin-top:10px">SN MOBIDEER Label Automation</h2>
+        <p style="color:var(--muted);margin-top:6px;font-size:.9rem">Upload master template & consignment files to begin</p>
+      </div>
+      <div class="upload-zones">
+        <div class="drop-zone" id="master-zone" onclick="document.getElementById('master-input').click()" ondragover="dzOver(event,'master-zone')" ondragleave="dzLeave('master-zone')" ondrop="dzDrop(event,'master')">
+          <input type="file" id="master-input" accept=".csv,.xlsx,.xls" onchange="handleMasterFile(this.files[0])"/>
+          <div class="dz-icon">📊</div>
+          <h4>Master Template</h4>
+          <p>SKU database CSV / XLSX<br><small>Drop or click to upload</small></p>
+        </div>
+        <div class="drop-zone" id="cons-zone" onclick="document.getElementById('cons-input2').click()" ondragover="dzOver(event,'cons-zone')" ondragleave="dzLeave('cons-zone')" ondrop="dzDrop(event,'cons')">
+          <input type="file" id="cons-input2" accept=".csv,.xlsx,.xls" multiple onchange="handleConsFiles(this.files)"/>
+          <div class="dz-icon">📋</div>
+          <h4>Consignment Files</h4>
+          <p>Flipkart order CSV / XLSX<br><small>Drop or click to upload</small></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSIGNMENT VIEW -->
+    <div id="cons-view">
+      <div id="stats-bar">
+        <div class="stat-item"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">Total SKUs</div></div>
+        <div class="stat-item"><div class="stat-val" id="s-qty">0</div><div class="stat-lbl">Total Qty</div></div>
+        <div class="stat-item"><div class="stat-val" id="s-printed">0</div><div class="stat-lbl">Printed</div></div>
+        <div class="stat-item"><div class="stat-val" id="s-pending">0</div><div class="stat-lbl">Pending</div></div>
+        <div class="stat-item"><div class="stat-val" id="s-new">0</div><div class="stat-lbl">New SKUs</div></div>
+      </div>
+      <div id="toolbar">
+        <input id="tbl-search" placeholder="🔍 Search SKU / FSN…" oninput="renderTable()"/>
+        <button class="tb-btn primary" onclick="printAll()">🚀 Print All</button>
+        <button class="tb-btn success" onclick="printSelected()">✅ Print Selected</button>
+        <button class="tb-btn warn" onclick="batchPrint()">📦 Batch Print</button>
+        <button class="tb-btn outline" onclick="packingSlip()">📄 Packing Slip</button>
+        <button class="tb-btn outline" onclick="toggleSelectAll()" id="sel-all-btn">☑️ All</button>
+      </div>
+      <div id="tbl-wrap">
+        <table id="items-table">
+          <thead>
+            <tr>
+              <th class="cb-cell"><input type="checkbox" id="cb-all" onchange="cbAll(this.checked)"/></th>
+              <th style="width:42px">#</th>
+              <th>SKU / FSN</th>
+              <th>Material</th>
+              <th style="width:80px">Qty</th>
+              <th style="width:130px">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   CONSTANTS & STATE
+══════════════════════════════════════════════════════════════════ */
+const SK_CONS    = 'sn_cons_v1';
+const SK_MASTER  = 'sn_master_v1';
+const SK_PENDING = 'sn_pending_v1';
+const BRIDGE     = 'http://localhost:7788';
+
+const MAT_MAP = [
+  ['CAMERA-PROT','Silicon'],['CAMERA_PROT','Silicon'],['CAMER-PROT','Silicon'],['CAMRA-PROTEC','Silicon'],
+  ['COFFE_','Silicon'],['COFEE_','Silicon'],['COFFEE_','Silicon'],
+  ['CRYSTAL_MAGSF','Plastic'],
+  ['EAGL_BLAK','Plastic, Rubber, Fiber'],['EAGLE_BLACK','Plastic, Rubber, Fiber'],
+  ['EGALE_BLACK','Plastic, Rubber, Fiber'],['EGL_BLK','Plastic, Rubber, Fiber'],['ARMY_BLK','Plastic, Rubber, Fiber'],
+  ['FRAM_LASS','Plastic'],
+  ['KAPDA_','Silicon, Cloth'],['KPDA_','Silicon, Cloth'],['SN_KPDA','Silicon, Cloth'],
+  ['BUMP_T_PRINT_MAGSF','Thermoplastic Polyurethane'],
+  ['MAGSF_','Thermoplastic Polyurethane'],['MEGSEF_TRANS','Thermoplastic Polyurethane'],
+  ['PUF_BLK','Rubber'],['PUF_BLUE','Rubber'],['PUF_','Rubber'],
+  ['SMOK_MGSFE','Plastic, Rubber, Fiber'],['SMOK_','Plastic, Rubber, Fiber'],['SASA11_','Plastic, Rubber, Fiber'],
+];
+
+let consignments = [];
+let masterDB = {};
+let masterCount = 0;
+let pendingSync = [];
+let selectedConsId = null;
+let bridgeOnline = false;
+let wasOffline = false;
+let masterAutoLoaded = false;
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════════════════════════════════ */
+function save(){
+  localStorage.setItem(SK_CONS, JSON.stringify(consignments));
+  localStorage.setItem(SK_MASTER, JSON.stringify({db:masterDB,count:masterCount}));
+  localStorage.setItem(SK_PENDING, JSON.stringify(pendingSync));
+}
+function load(){
+  try{
+    const cd = localStorage.getItem(SK_CONS);
+    if(cd) consignments = JSON.parse(cd);
+    const md = localStorage.getItem(SK_MASTER);
+    if(md){ const o=JSON.parse(md); masterDB=o.db||{}; masterCount=o.count||Object.keys(masterDB).length; }
+    const pd = localStorage.getItem(SK_PENDING);
+    if(pd) pendingSync = JSON.parse(pd);
+  } catch(e){ console.error(e); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK MODE
+══════════════════════════════════════════════════════════════════ */
+function toggleDark(){
+  const dark = document.body.classList.toggle('dark');
+  document.getElementById('dark-toggle').textContent = dark ? '☀️' : '🌙';
+  localStorage.setItem('sn_theme', dark ? 'dark' : 'light');
+}
+(function initTheme(){
+  const t = localStorage.getItem('sn_theme');
+  if(t==='dark'){ document.body.classList.add('dark'); document.getElementById('dark-toggle').textContent='☀️'; }
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   BRIDGE HEALTH
+══════════════════════════════════════════════════════════════════ */
+const CLOUD_MASTER_URL = "https://raw.githubusercontent.com/ecommercelabelcroper-del/SN-MOBIDEER-Label-AutoMations/main/Master_SKU_Database.csv";
+
+function mergeMasterCsvText(text, sourceName){
+  if(!text || !text.trim()) return;
+  const result = Papa.parse(text.trim(), {header:true, skipEmptyLines:true});
+  let added = 0, updated = 0;
+  result.data.forEach(row=>{
+    const sku = (row['SKU'] || row['sku'] || '').trim();
+    if(!sku) return;
+    const key = sku.toUpperCase();
+    if(!masterDB[key]){
+      masterDB[key] = {
+        'Material': row['Material'] || '',
+        'Brand_Color': row['Brand_Color'] || '',
+        'Model ID': row['Model ID'] || '',
+        'FSN': row['FSN'] || '',
+        'Country_of_Origin': row['Country_of_Origin'] || 'INDIA',
+        'Month_Year_Manufacturing': row['Month_Year_Manufacturing'] || curMonthYear(),
+      };
+      added++;
+      masterCount++;
+    } else {
+      const md = masterDB[key];
+      if(!md['Material'] && row['Material']) { md['Material'] = row['Material']; updated++; }
+      if(!md['FSN'] && row['FSN']) md['FSN'] = row['FSN'];
+      if(!md['Brand_Color'] && row['Brand_Color']) md['Brand_Color'] = row['Brand_Color'];
+      if(!md['Model ID'] && row['Model ID']) md['Model ID'] = row['Model ID'];
+    }
+  });
+  if(added > 0 || updated > 0){
+    save();
+    updateMasterCount();
+    const msg = added > 0 ? `Master synced (${sourceName}): ${masterCount} total SKUs (${added} new)` : `Master refreshed (${sourceName}): ${masterCount} SKUs`;
+    toast('success', msg);
+    if(selectedConsId) renderRight();
+  } else {
+    updateMasterCount();
+  }
+}
+
+async function tryAutoLoadMasterFromCloud(){
+  if(!navigator.onLine) return;
+  try{
+    const r = await fetch(`${CLOUD_MASTER_URL}?_t=${Date.now()}`, {signal:AbortSignal.timeout(5000)});
+    if(!r.ok) return;
+    const text = await r.text();
+    mergeMasterCsvText(text, 'GitHub Cloud');
+  } catch(e){ /* silent when offline or network error */ }
+}
+
+async function checkBridge(){
+  try{
+    const r = await fetch(`${BRIDGE}/`,{signal:AbortSignal.timeout(3000)});
+    if(r.ok){
+      if(!bridgeOnline){ wasOffline=true; }
+      bridgeOnline=true;
+      document.getElementById('bridge-dot').className='online';
+      document.getElementById('bridge-lbl').textContent='Bridge Online';
+      // FIX 1: Always try to merge master from bridge on first online detection
+      if(!masterAutoLoaded){
+        masterAutoLoaded=true;
+        tryAutoLoadMaster();
+      }
+      if(wasOffline && pendingSync.length>0){
+        wasOffline=false;
+        const res = await Swal.fire({title:'Bridge back online!',text:`Sync ${pendingSync.length} pending SKU(s) to master CSV?`,icon:'question',showCancelButton:true,confirmButtonText:'Sync Now'});
+        if(res.isConfirmed) syncPending();
+      } else { wasOffline=false; }
+    } else { setBridgeOffline(); }
+  } catch(e){ setBridgeOffline(); }
+}
+
+async function tryAutoLoadMaster(){
+  try{
+    const r=await fetch(`${BRIDGE}/master`,{signal:AbortSignal.timeout(5000)});
+    if(!r.ok){
+      await tryAutoLoadMasterFromCloud();
+      return;
+    }
+    const text=await r.text();
+    mergeMasterCsvText(text, 'Local Bridge');
+  } catch(e){
+    await tryAutoLoadMasterFromCloud();
+  }
+}
+
+function setBridgeOffline(){
+  if(bridgeOnline) wasOffline=true;
+  bridgeOnline=false;
+  document.getElementById('bridge-dot').className='';
+  document.getElementById('bridge-lbl').textContent='Bridge Offline';
+}
+setInterval(checkBridge,5000);
+checkBridge();
+tryAutoLoadMasterFromCloud();
+
+/* ═══════════════════════════════════════════════════════════════════
+   MASTER FILE
+══════════════════════════════════════════════════════════════════ */
+function handleMasterFile(file){
+  if(!file) return;
+  parseFile(file, rows=>{
+    let added=0;
+    rows.forEach(r=>{
+      const sku=(r['SKU']||r['sku']||'').trim();
+      if(!sku) return;
+      const key=sku.toUpperCase();
+      if(!masterDB[key]){
+        masterDB[key]={
+          'Material':r['Material']||r['material']||'',
+          'Brand_Color':r['Brand_Color']||r['color']||r['Color']||'',
+          'Model ID':r['Model ID']||r['model_id']||r['Model']||'',
+          'FSN':r['FSN']||r['fsn']||'',
+          'Country_of_Origin':r['Country_of_Origin']||'INDIA',
+          'Month_Year_Manufacturing':r['Month_Year_Manufacturing']||curMonthYear(),
+        };
+        added++;
+      }
+    });
+    masterCount += added;
+    save();
+    updateMasterCount();
+    Swal.fire({icon:'success',title:'Master DB Loaded',text:`${added} new SKUs added. Total: ${masterCount}`,timer:2500,showConfirmButton:false});
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONSIGNMENT FILES
+══════════════════════════════════════════════════════════════════ */
+function handleConsFiles(files){
+  Array.from(files).forEach(f=> parseConsFile(f));
+}
+function parseConsFile(file){
+  parseFile(file, rows=>{
+    if(!rows.length){ Swal.fire({icon:'error',title:'Empty file',text:file.name}); return; }
+    const headers = Object.keys(rows[0]);
+    const sample = rows[0];
+
+    // ── SKU column detection — expanded Flipkart variants ──
+    const SKU_NAMES=['SKU Id','SKU ID','Sku Id','sku id','SKU','sku',
+      'Seller SKU Id','Seller SKU ID','Listing Id','Listing ID',
+      'Your Listing Id','Product Id','Item Id','SKUID','Sku ID','ListingId'];
+    let skuCol = headers.find(h=>SKU_NAMES.includes(h));
+
+    // ── Qty column detection ──
+    const QTY_NAMES=['Quantity Sent','Quantity sent','quantity sent','QUANTITY SENT',
+      'Quantity','quantity','QUANTITY','Qty','qty','Total Quantity','Sales Units',
+      'Ordered Quantity','No. of Units','Units Ordered','Order Qty','Dispatch Qty','No of Units',
+      'Actual Quantity','Shipped Qty'];
+    let qtyCol = headers.find(h=>QTY_NAMES.includes(h));
+
+    const fsnCol = headers.find(h=>['FSN','fsn'].includes(h));
+    const colorCol = headers.find(h=>['Brand_Color','brand_color','Color','color','Colour'].includes(h));
+    const modelCol = headers.find(h=>['Model ID','model_id','Model'].includes(h));
+
+    // ── Step 3: Load with confirmed SKU + Qty columns ──
+    const doLoad=async(sc, qc)=>{
+      const qVals = rows.map(r=>parseInt(r[qc])||0);
+      const allOne = qVals.every(v=>v===1);
+      if(allOne){
+        const numCols = headers.filter(h=>rows.some(r=>!isNaN(parseInt(r[h]))));
+        await Swal.fire({
+          title:'⚠️ Quantity Check',
+          html:`<p>All quantities = 1. Possible column mismatch.</p>
+            <p style="margin:8px 0;font-size:.85rem;color:#64748b">Available columns: <b>${headers.join(', ')}</b></p>
+            <p style="font-size:.85rem">Numeric columns: <b>${numCols.join(', ')}</b></p>
+            <input id="swal-qty-col" class="swal2-input" placeholder="Enter correct column name" style="margin-top:10px"/>`,
+          showCancelButton:true,
+          confirmButtonText:'Apply',
+          preConfirm:()=>{ return document.getElementById('swal-qty-col').value.trim()||null; }
+        }).then(async res=>{
+          if(res.isConfirmed && res.value) await buildConsignment(rows, file, res.value, fsnCol, colorCol, modelCol, sc);
+          else await buildConsignment(rows, file, qc, fsnCol, colorCol, modelCol, sc);
+        });
+      } else {
+        await buildConsignment(rows, file, qc, fsnCol, colorCol, modelCol, sc);
+      }
+    };
+
+    // ── Step 2: Confirm Qty column ──
+    const doWithSku=(sc)=>{
+      if(!qtyCol){
+        const numCols = headers.filter(h=>rows.some(r=>!isNaN(parseInt(r[h]))));
+        Swal.fire({
+          title:'Select Quantity Column',
+          html:`<p>Could not auto-detect quantity column.</p>
+            <p style="font-size:.85rem;margin:8px 0">Numeric columns: <b>${numCols.join(', ')}</b></p>
+            <input id="swal-qty-col" class="swal2-input" placeholder="Enter column name"/>`,
+          confirmButtonText:'Apply',
+          preConfirm:()=>document.getElementById('swal-qty-col').value.trim()||null
+        }).then(res=>{
+          doLoad(sc, res.value || numCols[0] || headers[1]);
+        });
+      } else {
+        doLoad(sc, qtyCol);
+      }
+    };
+
+    // ── Step 1: If SKU col not found → show picker with column names + sample values ──
+    if(!skuCol){
+      const colOpts = headers.map(h=>{
+        const val = String(sample[h]||'').slice(0,50);
+        return `<option value="${h}">${h}  →  ${val}</option>`;
+      }).join('');
+      Swal.fire({
+        title:'⚠️ SKU Column Select Karo',
+        html:`<p style="font-size:.85rem;margin-bottom:8px">File: <b>${file.name}</b></p>
+          <p style="font-size:.82rem;color:#64748b;margin-bottom:8px">Column aur pehli value dekh ke <b>SKU wala</b> select karo:</p>
+          <select id="swal-sku-sel" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;font-size:.8rem">${colOpts}</select>`,
+        confirmButtonText:'Apply',
+        showCancelButton:true,
+        preConfirm:()=>document.getElementById('swal-sku-sel').value
+      }).then(res=>{
+        if(res.isConfirmed && res.value) doWithSku(res.value);
+      });
+    } else {
+      doWithSku(skuCol);
+    }
+  });
+}
+
+async function buildConsignment(rows, file, qtyCol, fsnCol, colorCol, modelCol, skuCol){
+  // Ensure we have latest master from Cloud and Bridge before checking SKUs
+  if(navigator.onLine) await tryAutoLoadMasterFromCloud();
+  if(bridgeOnline) await tryAutoLoadMaster();
+
+  const fname = file.name;
+  const m = fname.match(/\d{7,}/);
+  const autoId = m ? m[0] : Date.now().toString().slice(-7);
+
+  // Replace existing with same ID
+  const existIdx = consignments.findIndex(c=>c.autoId===autoId);
+
+  const items=[];
+  let newSkuCount=0;
+  const newMasterRows=[];
+
+  rows.forEach(r=>{
+    const sku=(skuCol?r[skuCol]:'') || Object.values(r)[0] || '';
+    if(!sku.trim()) return;
+    const qty=parseInt(r[qtyCol])||1;
+    const fsn=fsnCol?r[fsnCol]:'';
+    const color=colorCol?r[colorCol]:'';
+    const model=modelCol?r[modelCol]:sku;
+    const key=sku.toUpperCase();
+    const inMaster=!!masterDB[key];
+    let mat='Unknown', bColor=color, mId=model||sku;
+    let monthYear=curMonthYear(), cow='INDIA', mFsn=fsn;
+
+    if(inMaster){
+      const md=masterDB[key];
+      mat=md['Material']||'Unknown';
+      bColor=md['Brand_Color']||color;
+      mId=md['Model ID']||model||sku;
+      mFsn=md['FSN']||fsn;
+    } else {
+      mat=detectMaterial(sku);
+      newSkuCount++;
+      masterDB[key]={Material:mat,Brand_Color:color,'Model ID':model||sku,FSN:fsn,Country_of_Origin:'INDIA',Month_Year_Manufacturing:monthYear};
+      masterCount++;
+      newMasterRows.push({SKU:sku,'Model ID':model||sku,Month_Year_Manufacturing:monthYear,Brand_Color:color,Country_of_Origin:'INDIA',FSN:fsn,Material:mat});
+    }
+    items.push({sku,fsn:mFsn,quantity:qty,originalQty:qty,material:mat,color:bColor,modelId:mId,monthYear,printed:false,isNew:!inMaster});
+  });
+
+  const cons={id:autoId,filename:fname,autoId,items,boxes:[],uploadTime:Date.now(),newSkuCount};
+  if(existIdx>=0) consignments[existIdx]=cons;
+  else consignments.unshift(cons);
+
+  save();
+  updateMasterCount();
+  renderLeft();
+  selectedConsId=autoId;
+  renderRight();
+  toast('success',`Loaded: ${fname} — ${items.length} SKUs`);
+
+  // ── New SKU popup ──────────────────────────────────────────────
+  if(newMasterRows.length){
+    await showNewSkuPopup(newMasterRows);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   NEW SKU POPUP — shown after consignment upload if new SKUs found
+══════════════════════════════════════════════════════════════════ */
+async function showNewSkuPopup(newRows){
+  // Build editable table HTML
+  const matOptions=['Plastic','Silicon','Rubber','Thermoplastic Polyurethane','Plastic, Rubber, Fiber','Silicon, Cloth','Unknown'];
+  const rows=newRows.map((r,i)=>{
+    const opts=matOptions.map(m=>`<option value="${m}"${m===r.Material?' selected':''}>${m}</option>`).join('');
+    return `<tr style="border-bottom:1px solid #e5e7eb">
+      <td style="padding:6px 8px;font-size:.78rem;font-weight:600;color:#1e293b;text-align:left;max-width:220px;word-break:break-all">${escHtml(r.SKU)}</td>
+      <td style="padding:6px 8px;font-size:.78rem;color:#64748b;text-align:left">${escHtml(r.FSN||'—')}</td>
+      <td style="padding:6px 4px">
+        <select id="mat-${i}" style="font-size:.75rem;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;width:100%">${opts}
+          <option value="__custom__">✏️ Custom...</option>
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html=`
+    <p style="margin:0 0 10px;font-size:.85rem;color:#64748b">Ye SKUs master mein nahi thi — material check karo aur Save karo</p>
+    <div style="max-height:320px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#f8fafc;position:sticky;top:0">
+        <th style="padding:6px 8px;font-size:.75rem;color:#475569;text-align:left">SKU</th>
+        <th style="padding:6px 8px;font-size:.75rem;color:#475569;text-align:left">FSN</th>
+        <th style="padding:6px 8px;font-size:.75rem;color:#475569;text-align:left">Material</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+
+  const {isConfirmed}=await Swal.fire({
+    title:`🆕 ${newRows.length} New SKU${newRows.length>1?'s':''} Mili!`,
+    html,
+    width:680,
+    showCancelButton:true,
+    confirmButtonText:'✅ Master Mein Save Karo',
+    cancelButtonText:'Baad Mein',
+    didOpen:()=>{
+      // Custom material input handler
+      newRows.forEach((_,i)=>{
+        const sel=document.getElementById(`mat-${i}`);
+        if(sel) sel.addEventListener('change',async()=>{
+          if(sel.value==='__custom__'){
+            const {value:custom}=await Swal.fire({title:'Custom Material',input:'text',inputPlaceholder:'e.g. Fabric, Leather...',showCancelButton:true});
+            if(custom){ const opt=document.createElement('option'); opt.value=custom; opt.textContent=custom; opt.selected=true; sel.insertBefore(opt,sel.lastChild); sel.value=custom; }
+            else sel.value=newRows[i].Material;
+          }
+        });
+      });
+    },
+    preConfirm:()=>{
+      return newRows.map((r,i)=>{
+        const sel=document.getElementById(`mat-${i}`);
+        return {...r, Material: sel?sel.value:r.Material};
+      });
+    }
+  });
+
+  if(!isConfirmed) {
+    // User skipped — still add to memory but queue for later
+    pendingSync.push(...newRows);
+    updateSyncBtn();
+    toast('warn','New SKUs memory mein hain — bridge se baad mein sync hoga');
+    return;
+  }
+
+  // isConfirmed — use edited materials
+  const finalRows=isConfirmed;
+  // Update masterDB with corrected materials
+  finalRows.forEach(r=>{
+    const key=r.SKU.toUpperCase();
+    if(masterDB[key]) masterDB[key].Material=r.Material;
+  });
+  // Update items in current consignment too
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(cons) cons.items.forEach(it=>{ const f=finalRows.find(r=>r.SKU.toUpperCase()===it.sku.toUpperCase()); if(f) it.material=f.Material; });
+  save();
+  renderRight();
+
+  // Sync to bridge master CSV
+  if(bridgeOnline){
+    fetch(`${BRIDGE}/update-master`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(finalRows)})
+      .then(r=>r.json())
+      .then(d=>{
+        const added=d.added||[];
+        if(added.length) toast('success',`${added.length} new SKU${added.length>1?'s':''} Master_SKU_Database.csv mein save ho gayi!`);
+        else toast('info','SKUs already master mein hain');
+      })
+      .catch(()=>{ pendingSync.push(...finalRows); updateSyncBtn(); toast('warn','Bridge offline — sync queue mein hai'); });
+  } else {
+    pendingSync.push(...finalRows);
+    updateSyncBtn();
+    toast('warn','Bridge offline — new SKUs queue mein hain, online hone par sync hoga');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MATERIAL DETECTION
+══════════════════════════════════════════════════════════════════ */
+function detectMaterial(sku){
+  const u=sku.toUpperCase();
+  for(const [prefix,mat] of MAT_MAP){ if(u.startsWith(prefix.toUpperCase())) return mat; }
+  return 'Unknown';
+}
+function curMonthYear(){
+  const d=new Date();
+  return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}).replace(' ','-');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FILE PARSING
+══════════════════════════════════════════════════════════════════ */
+function parseFile(file, cb){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const result=Papa.parse(e.target.result.trim(),{header:true,skipEmptyLines:true});
+      cb(result.data);
+    };
+    reader.readAsText(file);
+  } else {
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      cb(XLSX.utils.sheet_to_json(ws,{defval:''}));
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER LEFT PANEL
+══════════════════════════════════════════════════════════════════ */
+function renderLeft(){
+  const list=document.getElementById('cons-list');
+  if(!consignments.length){ list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:.85rem">No consignments yet</div>'; return; }
+  list.innerHTML=consignments.map(c=>{
+    const total=c.items.length;
+    const printed=c.items.filter(i=>i.printed).length;
+    const icon=printed===total?'✅':printed>0?'🔄':'⬜';
+    const active=c.autoId===selectedConsId?'active':'';
+    const date=new Date(c.uploadTime).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+    const boxes=c.boxes||[];
+    const shown=boxes.slice(0,3);
+    const more=boxes.length-3;
+    const boxChips=shown.map(b=>`<span class="box-chip">Box ${b.boxNo}</span>`).join('');
+    const moreChip=more>0?`<span class="box-more">+${more} more</span>`:'';
+    return `<div class="cons-card ${active}" onclick="selectCons('${c.autoId}')">
+      <div class="cons-card-top">
+        <span class="cons-status-icon">${icon}</span>
+        <span class="cons-id">${c.autoId}</span>
+        <button class="cons-remove" onclick="removeCons(event,'${c.autoId}')">✕</button>
+      </div>
+      <div class="cons-meta">${total} SKUs · ${printed}/${total} printed · ${date}</div>
+      ${c.newSkuCount?`<div class="cons-meta" style="color:var(--warn)">🆕 ${c.newSkuCount} new</div>`:''}
+      ${boxes.length?`<div class="cons-boxes">${boxChips}${moreChip}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER RIGHT PANEL / TABLE
+══════════════════════════════════════════════════════════════════ */
+function selectCons(id){
+  selectedConsId=id;
+  renderLeft();
+  renderRight();
+}
+function renderRight(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  document.getElementById('empty-state').style.display=cons?'none':'flex';
+  document.getElementById('cons-view').style.display=cons?'flex':'none';
+  if(!cons) return;
+  updateStats(cons);
+  renderTable();
+}
+function updateStats(cons){
+  const total=cons.items.length;
+  const qty=cons.items.reduce((a,i)=>a+i.originalQty,0);
+  const printed=cons.items.filter(i=>i.printed).length;
+  const pending=total-printed;
+  const newS=cons.items.filter(i=>i.isNew).length;
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('s-qty').textContent=qty;
+  document.getElementById('s-printed').textContent=printed;
+  document.getElementById('s-pending').textContent=pending;
+  document.getElementById('s-new').textContent=newS;
+}
+function getFilteredItems(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return [];
+  const q=(document.getElementById('tbl-search').value||'').toLowerCase();
+  if(!q) return cons.items;
+  return cons.items.filter(i=>i.sku.toLowerCase().includes(q)||(i.fsn||'').toLowerCase().includes(q));
+}
+function renderTable(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  const items=getFilteredItems();
+  const tbody=document.getElementById('tbl-body');
+  tbody.innerHTML=items.map((item,idx)=>{
+    const globalIdx=cons.items.indexOf(item);
+    const checked=item._selected?'checked':'';
+    const printedHtml=item.printed
+      ?`<div class="printed-wrap"><span class="printed-lbl">✅ Printed</span><button class="reprint-btn" onclick="reprintItem(${globalIdx})">🔁</button></div>`
+      :`<button class="print-btn" onclick="printItem(${globalIdx})">🖨️ Print</button>`;
+    return `<tr>
+      <td class="cb-cell"><input type="checkbox" ${checked} onchange="itemCb(${globalIdx},this.checked)"/></td>
+      <td style="font-weight:700;color:var(--muted)">${idx+1}</td>
+      <td class="sku-cell">
+        ${escHtml(item.sku)}${item.isNew?'<span class="new-badge">NEW</span>':''}
+        ${item.fsn?`<div class="fsn-sub">${escHtml(item.fsn)}</div>`:''}
+      </td>
+      <td><input class="mat-input" value="${escHtml(item.material)}" onchange="updateMaterial(${globalIdx},this.value)" title="Edit material"/></td>
+      <td><input class="qty-input" type="number" min="1" value="${item.quantity}" onchange="updateQty(${globalIdx},this.value)"/></td>
+      <td>${printedHtml}</td>
+    </tr>`;
+  }).join('');
+  updateStats(cons);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABLE INTERACTIONS
+══════════════════════════════════════════════════════════════════ */
+function updateMaterial(idx,val){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  cons.items[idx].material=val;
+  const key=cons.items[idx].sku.toUpperCase();
+  if(masterDB[key]) masterDB[key].Material=val;
+  save();
+}
+function updateQty(idx,val){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  // FIX 2: Allow 0 qty — 0 means skip this item in batch/all print
+  const n=parseInt(val);
+  cons.items[idx].quantity=(isNaN(n)||n<0)?0:n;
+  save();
+}
+function itemCb(idx,checked){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(cons) cons.items[idx]._selected=checked;
+}
+function cbAll(checked){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  getFilteredItems().forEach(i=>i._selected=checked);
+  renderTable();
+}
+function toggleSelectAll(){
+  const cb=document.getElementById('cb-all');
+  cb.checked=!cb.checked;
+  cbAll(cb.checked);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRINT FUNCTIONS
+══════════════════════════════════════════════════════════════════ */
+function buildPayload(items){
+  const rows=[];
+  items.forEach(item=>{
+    // FIX 2: Skip items with 0 quantity
+    if(item.quantity<=0) return;
+    const entry={
+      SKU:item.sku,'Model ID':item.modelId,
+      Month_Year_Manufacturing:item.monthYear,
+      Brand_Color:item.color,Country_of_Origin:'INDIA',
+      FSN:item.fsn,Material:item.material
+    };
+    for(let i=0;i<item.quantity;i++) rows.push(entry);
+  });
+  return rows;
+}
+async function sendToBridge(items){
+  if(!bridgeOnline){ toast('warn','Bridge is offline!'); return false; }
+  const payload=buildPayload(items);
+  try{
+    const r=await fetch(`${BRIDGE}/print`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    return r.ok;
+  } catch(e){ toast('warn','Bridge error: '+e.message); return false; }
+}
+function markPrinted(items){
+  items.forEach(i=>{ i.printed=true; i._selected=false; });
+  save();
+  renderLeft();
+  renderTable();
+}
+async function printAll(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons||!cons.items.length) return;
+  const unprintd=cons.items.filter(i=>!i.printed);
+  if(!unprintd.length){ toast('info','All items already printed'); return; }
+  const ok=await sendToBridge(unprintd);
+  if(ok){ markPrinted(unprintd); toast('success',`Printed ${unprintd.length} SKUs`); }
+}
+async function printSelected(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  const sel=cons.items.filter(i=>i._selected&&!i.printed);
+  if(!sel.length){ toast('warn','No unprintd items selected'); return; }
+  const ok=await sendToBridge(sel);
+  if(ok){ markPrinted(sel); toast('success',`Printed ${sel.length} selected`); }
+}
+async function printItem(idx){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  const item=cons.items[idx];
+  // Quantity already set in consignment — directly print, no popup
+  const ok=await sendToBridge([item]);
+  if(ok){ markPrinted([item]); }
+}
+async function reprintItem(idx){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons) return;
+  const item=cons.items[idx];
+  const {value:qty,isConfirmed}=await Swal.fire({
+    title:'🔁 Reprint — Kitne Print Karne Hain?',
+    html:`<b style="font-size:.9rem;color:#666">${item.sku}</b>`,
+    input:'number',
+    inputValue:item.quantity,
+    inputAttributes:{min:1,max:999,step:1},
+    showCancelButton:true,
+    confirmButtonText:'Reprint',
+    cancelButtonText:'Cancel',
+    inputValidator:v=>(!v||v<1)?'Quantity 1 se kam nahi ho sakti':null
+  });
+  if(!isConfirmed) return;
+  const printQty=parseInt(qty)||item.quantity;
+  const tempItem={...item, quantity:printQty};
+  item.printed=false; save(); renderTable();
+  const ok=await sendToBridge([tempItem]);
+  if(ok){ markPrinted([item]); }
+}
+
+/* =======================================================================
+   BATCH PRINT - Redesigned: FROM / KiTNE / TO + Live Info Box + Reprint
+======================================================================== */
+async function batchPrint(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons||!cons.items.length) return;
+  const total=cons.items.length;
+
+  const batches=cons.batches||[];
+  const lastBatch=batches.length>0?batches[batches.length-1]:null;
+  const nextBoxNo=batches.length+1;
+  const nextFrom=lastBatch?lastBatch.to+1:1;
+  const remaining=total-((lastBatch?lastBatch.to:0));
+
+  if(nextFrom>total){
+    const reprintLast=lastBatch?`<div style="margin-top:8px;font-size:.82rem;color:#64748b">Last: Box ${lastBatch.boxNo} - Items ${lastBatch.from} to ${lastBatch.to}</div>`:'';
+    const res=await Swal.fire({
+      title:'Batch Complete!',
+      html:`<p style="font-size:.9rem">Saare ${total} items batch print ho chuke hain.</p>${reprintLast}<p style="margin-top:10px;font-size:.85rem;color:#64748b">Kya karna chahte ho?</p>`,
+      icon:'info',showCancelButton:true,showDenyButton:true,
+      confirmButtonText:'Reprint Custom Range',denyButtonText:'Reset and New Batch',cancelButtonText:'Baad Mein',
+      confirmButtonColor:'#f59e0b',denyButtonColor:'#6366f1'
+    });
+    if(res.isConfirmed){ await batchPrintDialog(cons,total,batches,true); }
+    else if(res.isDenied){ cons.batches=[]; save(); renderLeft(); batchPrint(); }
+    return;
+  }
+  await batchPrintDialog(cons,total,batches,false);
+}
+
+async function batchPrintDialog(cons,total,batches,reprintMode){
+  const lastBatch=batches.length>0?batches[batches.length-1]:null;
+  const nextBoxNo=batches.length+(reprintMode?0:1);
+  const nextFrom=reprintMode?1:(lastBatch?lastBatch.to+1:1);
+  const remaining=reprintMode?total:(total-((lastBatch?lastBatch.to:0)));
+
+  function calcLabels(from,to){
+    const ct=Math.min(to,total); if(from>ct) return 0;
+    return cons.items.slice(from-1,ct).reduce((a,i)=>a+(i.originalQty||i.quantity||1),0);
+  }
+  function hasPrinted(from,to){
+    const ct=Math.min(to,total); if(from>ct) return false;
+    return cons.items.slice(from-1,ct).some(i=>i.printed);
+  }
+
+  const defCount=remaining;
+  const defTo=Math.min(nextFrom+defCount-1,total);
+
+  const reprintBanner=reprintMode?'<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:.82rem;color:#92400e;text-align:center;font-weight:600">Reprint Mode -- Koi bhi range select karo, print hoga</div>':'';
+
+  const dHTML='<div style="font-family:inherit">'+reprintBanner+
+    '<div style="display:flex;justify-content:space-between;align-items:center;background:#f0f4ff;border:1px solid #c7d7ff;border-radius:10px;padding:10px 18px;margin-bottom:14px;font-size:.9rem;font-weight:600">'+
+    '<span>Total SKUs: <b style="color:#2563eb;font-size:1.15rem">'+total+'</b></span>'+
+    '<span>'+(reprintMode?'Reprint':'Remaining')+': <b style="color:'+(reprintMode?'#f59e0b':'#16a34a')+';font-size:1.15rem">'+remaining+'</b></span></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:10px;margin-bottom:14px">'+
+    '<div style="text-align:center"><div style="font-size:.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">FROM (SKU #)</div>'+
+    '<input id="bp-from" type="number" min="1" max="'+total+'" value="'+nextFrom+'" style="width:100%;padding:10px 6px;border:2px solid #3b82f6;border-radius:8px;font-size:1.1rem;font-weight:700;text-align:center;color:#1e293b;background:#fff;outline:none;box-sizing:border-box"/></div>'+
+    '<div style="text-align:center"><div style="font-size:.68rem;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">KiTNE SKUs?</div>'+
+    '<input id="bp-count" type="number" min="1" max="'+total+'" value="'+defCount+'" style="width:100%;padding:10px 6px;border:2px solid #f59e0b;border-radius:8px;font-size:1.2rem;font-weight:800;text-align:center;color:#92400e;background:#fffbeb;outline:none;box-sizing:border-box"/></div>'+
+    '<div style="text-align:center"><div style="font-size:.68rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">TO (SKU #)</div>'+
+    '<input id="bp-to" type="number" min="1" max="'+total+'" value="'+defTo+'" style="width:100%;padding:10px 6px;border:2px solid #3b82f6;border-radius:8px;font-size:1.1rem;font-weight:700;text-align:center;color:#1e293b;background:#fff;outline:none;box-sizing:border-box"/></div></div>'+
+    '<div id="bp-info-box" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 15px;font-size:.84rem;line-height:1.9;text-align:left">'+
+    '<div>Is batch mein: <b id="bp-lbl-range">'+defCount+' SKUs (# '+nextFrom+' to '+defTo+')</b></div>'+
+    '<div>Total Labels: <b id="bp-lbl-qty" style="color:#2563eb">--</b></div>'+
+    '<div id="bp-warn-line" style="display:none;color:#b45309;font-weight:700;font-size:.8rem">Ye items pehle print ho chuke hain -- phir bhi print hoga!</div>'+
+    '<div style="color:#64748b;font-size:.77rem">Next batch: <span id="bp-lbl-next">'+(defTo<total?defTo+1+' se shuru':'Ye last batch hai')+'</span></div>'+
+    '</div></div>';
+
+  const {value:vals}=await Swal.fire({
+    title:'Batch Print'+(reprintMode?' (Reprint)':''),
+    html:dHTML,
+    confirmButtonText:'Batch Print',cancelButtonText:'Cancel',showCancelButton:true,
+    confirmButtonColor:reprintMode?'#f59e0b':'#6366f1',
+    didOpen:()=>{
+      const iF=document.getElementById('bp-from');
+      const iC=document.getElementById('bp-count');
+      const iT=document.getElementById('bp-to');
+      const lR=document.getElementById('bp-lbl-range');
+      const lQ=document.getElementById('bp-lbl-qty');
+      const lN=document.getElementById('bp-lbl-next');
+      const wL=document.getElementById('bp-warn-line');
+      const iB=document.getElementById('bp-info-box');
+      setTimeout(()=>{iC.focus();iC.select();},80);
+      function upd(src){
+        let f=parseInt(iF.value)||1,c=parseInt(iC.value)||1,t=parseInt(iT.value)||1;
+        f=Math.max(1,Math.min(f,total));
+        if(src==='count'){c=Math.max(1,Math.min(c,total-f+1));t=f+c-1;iT.value=t;}
+        else if(src==='to'){t=Math.max(f,Math.min(t,total));c=t-f+1;iC.value=c;}
+        else{c=Math.max(1,Math.min(c,total-f+1));t=f+c-1;iT.value=t;iC.value=c;}
+        iF.value=f;
+        const lbL=calcLabels(f,t);const anyP=hasPrinted(f,t);
+        lR.textContent=c+' SKUs (# '+f+' to '+t+')';
+        lQ.textContent=lbL>0?lbL:'--';
+        lN.textContent=t<total?(t+1)+' se shuru':'Ye last batch hai';
+        if(anyP){iB.style.background='#fffbeb';iB.style.border='1px solid #f59e0b';wL.style.display='block';}
+        else{iB.style.background='#eff6ff';iB.style.border='1px solid #bfdbfe';wL.style.display='none';}
+      }
+      iF.addEventListener('input',()=>upd('from'));
+      iC.addEventListener('input',()=>upd('count'));
+      iT.addEventListener('input',()=>upd('to'));
+      const initL=calcLabels(nextFrom,defTo);lQ.textContent=initL>0?initL:'--';
+      if(hasPrinted(nextFrom,defTo)){iB.style.background='#fffbeb';iB.style.border='1px solid #f59e0b';wL.style.display='block';}
+      if(defTo>=total) lN.textContent='Ye last batch hai';
+    },
+    preConfirm:()=>{
+      const f=parseInt(document.getElementById('bp-from').value);
+      const c=parseInt(document.getElementById('bp-count').value);
+      const t=parseInt(document.getElementById('bp-to').value);
+      if(isNaN(f)||isNaN(c)||isNaN(t)||f<1||t>total||f>t||c<1){Swal.showValidationMessage('Valid range enter karo (1-'+total+')');return;}
+      return {from:f,to:t,count:c};
+    }
+  });
+  if(!vals) return;
+
+  const slice=cons.items.slice(vals.from-1,vals.to);
+  const alreadyPrinted=slice.some(i=>i.printed);
+
+  if(alreadyPrinted){
+    const pCount=slice.filter(i=>i.printed).length;
+    const conf=await Swal.fire({
+      title:'Pehle Se Printed Items',
+      html:'<p style="font-size:.9rem">In <b>'+vals.count+' items</b> mein se <b>'+pCount+' items</b> pehle print ho chuke hain.</p><p style="margin-top:8px;font-size:.85rem;color:#64748b">Kya phir bhi dobara print karna hai?</p>',
+      icon:'warning',showCancelButton:true,
+      confirmButtonText:'Haan, Print Karo',cancelButtonText:'Ruk Jao',confirmButtonColor:'#f59e0b'
+    });
+    if(!conf.isConfirmed) return;
+    slice.forEach(i=>{i.printed=false;});
+  }
+
+  const ok=await sendToBridge(slice);
+  if(ok){
+    markPrinted(slice);
+    if(!cons.batches) cons.batches=[];
+    const boxLabel=reprintMode?('R'+(batches.length+1)):nextBoxNo;
+    cons.batches.push({boxNo:boxLabel,from:vals.from,to:vals.to,count:vals.count,printedAt:new Date().toLocaleString('en-IN'),isReprint:alreadyPrinted});
+    save();renderLeft();
+    toast('success','Box '+boxLabel+': Items '+vals.from+'-'+vals.to+' print ho gaye ('+vals.count+' SKUs)');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATABASE SEARCH (LEFT PANEL)
+══════════════════════════════════════════════════════════════════ */
+function dbSearch(q){
+  const res=document.getElementById('db-results');
+  if(!q.trim()){ res.style.display='none'; return; }
+  const ql=q.toLowerCase();
+  const matches=Object.entries(masterDB).filter(([k,v])=>k.toLowerCase().includes(ql)||(v.FSN||'').toLowerCase().includes(ql)).slice(0,12);
+  if(!matches.length){ res.style.display='none'; return; }
+  res.style.display='block';
+  res.innerHTML=matches.map(([sku,v])=>`<div class="db-result-row">
+    <div><div class="db-result-sku">${escHtml(sku)}</div><div class="db-result-mat">${escHtml(v.Material||'')} · ${escHtml(v.FSN||'')}</div></div>
+    <button class="db-print-btn" onclick="dbPrint('${sku}')">🖨️</button>
+  </div>`).join('');
+}
+async function dbPrint(sku){
+  const v=masterDB[sku];
+  if(!v) return;
+  const {value:qty,isConfirmed}=await Swal.fire({
+    title:'🖨️ Kitne Print Karne Hain?',
+    html:`<b style="font-size:.9rem;color:#666">${sku}</b>`,
+    input:'number',
+    inputValue:1,
+    inputAttributes:{min:1,max:999,step:1},
+    showCancelButton:true,
+    confirmButtonText:'Print',
+    cancelButtonText:'Cancel',
+    inputValidator:v=>(!v||v<1)?'Quantity 1 se kam nahi ho sakti':null
+  });
+  if(!isConfirmed) return;
+  const printQty=parseInt(qty)||1;
+  const item={sku,fsn:v.FSN||'',quantity:printQty,originalQty:printQty,material:v.Material||'',color:v.Brand_Color||'',modelId:v['Model ID']||sku,monthYear:v.Month_Year_Manufacturing||curMonthYear(),printed:false,isNew:false};
+  const ok=await sendToBridge([item]);
+  if(ok) toast('success',`Printed: ${sku} × ${printQty}`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PACKING SLIP
+══════════════════════════════════════════════════════════════════ */
+async function packingSlip(){
+  const cons=consignments.find(c=>c.autoId===selectedConsId);
+  if(!cons||!cons.items.length) return;
+
+  const hasBatchHistory=(cons.batches&&cons.batches.length>0);
+
+  // FIX 3: Show option to use batch history OR manual
+  let modeOptions={'1':'1 Box (sab ek peti mein)','m':'Multiple Boxes (manually assign)'};
+  if(hasBatchHistory){
+    modeOptions={'batch':`📦 Batch History se (${cons.batches.length} boxes auto)`,
+                 '1':'1 Box (sab ek peti mein)','m':'Multiple Boxes (manually assign)'};
+  }
+  const {value:boxChoice}=await Swal.fire({
+    title:'📄 Packing Slip',icon:'question',
+    input:'radio',inputOptions:modeOptions,
+    inputValue:hasBatchHistory?'batch':'1',
+    confirmButtonText:'Next',showCancelButton:true
+  });
+  if(!boxChoice) return;
+
+  const items=[...cons.items];
+  let boxes=[];
+
+  if(boxChoice==='batch'){
+    // FIX 3: Build boxes from batch history — use originalQty from consignment file
+    cons.batches.forEach(batch=>{
+      // Items are 1-indexed in batch records
+      const batchItems=cons.items.slice(batch.from-1, batch.to);
+      boxes.push({boxNo:batch.boxNo, skus:batchItems});
+    });
+    // If any items were not batched yet (partial batching), add as last box
+    const lastBatch=cons.batches[cons.batches.length-1];
+    if(lastBatch&&lastBatch.to<cons.items.length){
+      const remaining=cons.items.slice(lastBatch.to);
+      if(remaining.length>0){
+        boxes.push({boxNo:lastBatch.boxNo+1, skus:remaining});
+      }
+    }
+  } else if(boxChoice==='1'){
+    boxes=[{boxNo:1,skus:items}];
+  } else {
+    const {value:totalBoxStr}=await Swal.fire({
+      title:'Total boxes?',input:'number',inputAttributes:{min:2,step:1},inputValue:2,confirmButtonText:'Next',showCancelButton:true
+    });
+    if(!totalBoxStr) return;
+    const totalBoxes=parseInt(totalBoxStr);
+    if(isNaN(totalBoxes)||totalBoxes<2){ toast('warn','Invalid box count'); return; }
+    let remaining=[...items];
+    for(let b=1;b<totalBoxes;b++){
+      const {value:countStr}=await Swal.fire({
+        title:`Box ${b} — Kitne SKUs?`,
+        html:`<p style="color:var(--muted);font-size:.85rem">Remaining: ${remaining.length} SKU(s)</p>`,
+        input:'number',inputAttributes:{min:1,max:remaining.length-1,step:1},
+        inputValue:Math.ceil(remaining.length/totalBoxes),confirmButtonText:'Next',showCancelButton:true
+      });
+      if(!countStr) return;
+      const n=parseInt(countStr);
+      boxes.push({boxNo:b,skus:remaining.splice(0,n)});
+    }
+    boxes.push({boxNo:totalBoxes,skus:remaining});
+  }
+
+  cons.boxes=boxes.map(b=>({boxNo:b.boxNo,skus:b.skus.map(i=>i.sku),printedAt:null}));
+  save(); renderLeft();
+
+  const date=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const totalQty=items.reduce((a,i)=>a+i.originalQty,0);
+
+  const pageCSS=`body{font-family:Arial,sans-serif;font-size:11pt;margin:0;padding:0}
+  h1{text-align:center;font-size:16pt;font-weight:900;letter-spacing:1px;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:12px}
+  .meta{display:flex;justify-content:center;gap:24px;margin-bottom:12px;font-size:10pt;font-weight:700}
+  table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{border:1px solid #333;padding:5px 8px;font-weight:700;font-size:9.5pt}
+  th{background:#f0f0f0}
+  .footer{margin-top:12px;font-weight:700;font-size:10pt;border-top:2px solid #000;padding-top:8px;display:flex;gap:24px;justify-content:center}
+  .page{padding:10mm;page-break-after:always}
+  .page:last-child{page-break-after:auto}
+  @page{margin:8mm}
+  @media print{.no-print{display:none}}`;
+
+  const pagesHtml=boxes.map(box=>{
+    // FIX 3: Use originalQty from consignment file — not affected by qty=0 skips
+    const boxQty=box.skus.reduce((a,i)=>a+i.originalQty,0);
+    const rows=box.skus.map((item,i)=>`<tr>
+      <td>${box.boxNo}</td>
+      <td>${escHtml(item.fsn||'')}</td>
+      <td style="word-break:break-all">${escHtml(item.sku)}</td>
+      <td style="text-align:center">${item.originalQty}</td>
+    </tr>`).join('');
+    return `<div class="page">
+      <h1>PACKING SLIP</h1>
+      <div class="meta">
+        <span>Consignment: ${cons.autoId}</span>
+        <span>Box ${box.boxNo} of ${boxes.length}</span>
+        <span>Date: ${date}</span>
+      </div>
+      <table><thead><tr><th>BOX NO</th><th>FSN</th><th>SKU Id</th><th>Qty Sent</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="footer"><span>Box Total: ${box.skus.length} SKUs</span><span>Box Qty: ${boxQty}</span></div>
+    </div>`;
+  }).join('');
+
+  const grandTotal=`<div style="text-align:center;font-weight:900;font-size:12pt;margin-top:8px;padding:8px;border-top:3px double #000">
+    Total Boxes: ${boxes.length} | Total SKUs: ${items.length} | Grand Total Qty: ${totalQty}
+  </div>`;
+
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Packing Slip — ${cons.autoId}</title><style>${pageCSS}</style></head>
+  <body>
+  <div class="no-print" style="text-align:center;padding:12px;background:#f0f4f8;margin-bottom:8px">
+    <button onclick="window.print()" style="padding:10px 24px;font-size:1rem;font-weight:700;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ Print Packing Slip</button>
+    <p style="margin-top:6px;font-size:.82rem;color:#64748b">💡 Print dialog mein Headers and Footers OFF karein</p>
+  </div>
+  ${pagesHtml}${grandTotal}
+  </body></html>`);
+  w.document.close();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PENDING SYNC
+══════════════════════════════════════════════════════════════════ */
+function updateSyncBtn(){
+  const btn=document.getElementById('sync-btn');
+  const cnt=pendingSync.length;
+  document.getElementById('sync-count').textContent=cnt;
+  btn.style.display=cnt>0?'flex':'none';
+}
+async function syncPending(){
+  if(!pendingSync.length){ toast('info','Nothing to sync'); return; }
+  if(!bridgeOnline){ toast('warn','Bridge is offline'); return; }
+  try{
+    const r=await fetch(`${BRIDGE}/update-master`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pendingSync)});
+    const d=await r.json();
+    pendingSync=[];
+    save(); updateSyncBtn();
+    toast('success',d.message||'Sync complete');
+  } catch(e){ toast('warn','Sync failed: '+e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MISC HELPERS
+══════════════════════════════════════════════════════════════════ */
+function removeCons(e,id){ e.stopPropagation(); consignments=consignments.filter(c=>c.autoId!==id); if(selectedConsId===id) selectedConsId=consignments[0]?.autoId||null; save(); renderLeft(); renderRight(); }
+function clearAll(){ Swal.fire({title:'Clear all consignments?',icon:'warning',showCancelButton:true,confirmButtonText:'Clear'}).then(r=>{ if(r.isConfirmed){ consignments=[]; selectedConsId=null; save(); renderLeft(); renderRight(); } }); }
+function updateMasterCount(){ document.getElementById('master-count').textContent=`Master: ${masterCount} SKUs`; }
+function exportMasterCSV(){
+  if(!masterCount){ toast('warn','Master DB empty — koi SKU nahi hai'); return; }
+  const header='SKU,Model ID,Month_Year_Manufacturing,Brand_Color,Country_of_Origin,FSN,Material';
+  const lines=[header];
+  Object.entries(masterDB).forEach(([key,v])=>{
+    const esc=s=>`"${String(s||'').replace(/"/g,'""')}"`;
+    lines.push([key,v['Model ID']||key,v['Month_Year_Manufacturing']||'',v['Brand_Color']||'',v['Country_of_Origin']||'INDIA',v['FSN']||'',v['Material']||''].map(esc).join(','));
+  });
+  const blob=new Blob([lines.join('\r\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='Master_SKU_Database.csv'; a.click();
+  toast('success','Master_SKU_Database.csv download ho rahi hai — SN MOBIDEER Label AutoMations folder mein save karo');
+}
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(type,msg){
+  const icons={success:'✅',warn:'⚠️',info:'ℹ️',error:'❌'};
+  Swal.fire({toast:true,position:'top-end',icon:type==='warn'?'warning':type,title:`${icons[type]||''} ${msg}`,timer:3000,showConfirmButton:false,backdrop:false});
+}
+function dzOver(e,id){ e.preventDefault(); document.getElementById(id).classList.add('dragover'); }
+function dzLeave(id){ document.getElementById(id).classList.remove('dragover'); }
+function dzDrop(e,type){ e.preventDefault(); dzLeave(type+'-zone'); const f=e.dataTransfer.files; if(type==='master') handleMasterFile(f[0]); else handleConsFiles(f); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════ */
+load();
+updateMasterCount();
+updateSyncBtn();
+renderLeft();
+if(consignments.length){ selectedConsId=consignments[0].autoId; }
+renderRight();
+</script>
+</body>
+</html>
