@@ -300,6 +300,56 @@ function toggleDark(){
 /* ═══════════════════════════════════════════════════════════════════
    BRIDGE HEALTH
 ══════════════════════════════════════════════════════════════════ */
+const CLOUD_MASTER_URL = "https://raw.githubusercontent.com/ecommercelabelcroper-del/SN-MOBIDEER-Label-AutoMations/main/Master_SKU_Database.csv";
+
+function mergeMasterCsvText(text, sourceName){
+  if(!text || !text.trim()) return;
+  const result = Papa.parse(text.trim(), {header:true, skipEmptyLines:true});
+  let added = 0, updated = 0;
+  result.data.forEach(row=>{
+    const sku = (row['SKU'] || row['sku'] || '').trim();
+    if(!sku) return;
+    const key = sku.toUpperCase();
+    if(!masterDB[key]){
+      masterDB[key] = {
+        'Material': row['Material'] || '',
+        'Brand_Color': row['Brand_Color'] || '',
+        'Model ID': row['Model ID'] || '',
+        'FSN': row['FSN'] || '',
+        'Country_of_Origin': row['Country_of_Origin'] || 'INDIA',
+        'Month_Year_Manufacturing': row['Month_Year_Manufacturing'] || curMonthYear(),
+      };
+      added++;
+      masterCount++;
+    } else {
+      const md = masterDB[key];
+      if(!md['Material'] && row['Material']) { md['Material'] = row['Material']; updated++; }
+      if(!md['FSN'] && row['FSN']) md['FSN'] = row['FSN'];
+      if(!md['Brand_Color'] && row['Brand_Color']) md['Brand_Color'] = row['Brand_Color'];
+      if(!md['Model ID'] && row['Model ID']) md['Model ID'] = row['Model ID'];
+    }
+  });
+  if(added > 0 || updated > 0){
+    save();
+    updateMasterCount();
+    const msg = added > 0 ? `Master synced (${sourceName}): ${masterCount} total SKUs (${added} new)` : `Master refreshed (${sourceName}): ${masterCount} SKUs`;
+    toast('success', msg);
+    if(selectedConsId) renderRight();
+  } else {
+    updateMasterCount();
+  }
+}
+
+async function tryAutoLoadMasterFromCloud(){
+  if(!navigator.onLine) return;
+  try{
+    const r = await fetch(`${CLOUD_MASTER_URL}?_t=${Date.now()}`, {signal:AbortSignal.timeout(5000)});
+    if(!r.ok) return;
+    const text = await r.text();
+    mergeMasterCsvText(text, 'GitHub Cloud');
+  } catch(e){ /* silent when offline or network error */ }
+}
+
 async function checkBridge(){
   try{
     const r = await fetch(`${BRIDGE}/`,{signal:AbortSignal.timeout(3000)});
@@ -321,50 +371,21 @@ async function checkBridge(){
     } else { setBridgeOffline(); }
   } catch(e){ setBridgeOffline(); }
 }
+
 async function tryAutoLoadMaster(){
   try{
     const r=await fetch(`${BRIDGE}/master`,{signal:AbortSignal.timeout(5000)});
-    if(!r.ok) return;
-    const text=await r.text();
-    const result=Papa.parse(text.trim(),{header:true,skipEmptyLines:true});
-    let added=0, updated=0;
-    result.data.forEach(row=>{
-      const sku=(row['SKU']||row['sku']||'').trim();
-      if(!sku) return;
-      const key=sku.toUpperCase();
-      if(!masterDB[key]){
-        masterDB[key]={
-          'Material':row['Material']||'',
-          'Brand_Color':row['Brand_Color']||'',
-          'Model ID':row['Model ID']||'',
-          'FSN':row['FSN']||'',
-          'Country_of_Origin':row['Country_of_Origin']||'INDIA',
-          'Month_Year_Manufacturing':row['Month_Year_Manufacturing']||curMonthYear(),
-        };
-        added++;
-        masterCount++;
-      }
-      // Also update existing entries if CSV has better data
-      else {
-        const md = masterDB[key];
-        if(!md['Material'] && row['Material']) { md['Material']=row['Material']; updated++; }
-        if(!md['FSN'] && row['FSN']) md['FSN']=row['FSN'];
-        if(!md['Brand_Color'] && row['Brand_Color']) md['Brand_Color']=row['Brand_Color'];
-        if(!md['Model ID'] && row['Model ID']) md['Model ID']=row['Model ID'];
-      }
-    });
-    if(added>0||updated>0){
-      save();
-      updateMasterCount();
-      const msg=added>0 ? `Master synced: ${masterCount} total SKUs (${added} new)` : `Master refreshed: ${masterCount} SKUs`;
-      toast('success', msg);
-      if(selectedConsId) renderRight();
-    } else {
-      // Silent — no change
-      updateMasterCount();
+    if(!r.ok){
+      await tryAutoLoadMasterFromCloud();
+      return;
     }
-  } catch(e){ /* silent — bridge might not have master file */ }
+    const text=await r.text();
+    mergeMasterCsvText(text, 'Local Bridge');
+  } catch(e){
+    await tryAutoLoadMasterFromCloud();
+  }
 }
+
 function setBridgeOffline(){
   if(bridgeOnline) wasOffline=true;
   bridgeOnline=false;
@@ -373,6 +394,7 @@ function setBridgeOffline(){
 }
 setInterval(checkBridge,5000);
 checkBridge();
+tryAutoLoadMasterFromCloud();
 
 /* ═══════════════════════════════════════════════════════════════════
    MASTER FILE
@@ -500,6 +522,10 @@ function parseConsFile(file){
 }
 
 async function buildConsignment(rows, file, qtyCol, fsnCol, colorCol, modelCol, skuCol){
+  // Ensure we have latest master from Cloud and Bridge before checking SKUs
+  if(navigator.onLine) await tryAutoLoadMasterFromCloud();
+  if(bridgeOnline) await tryAutoLoadMaster();
+
   const fname = file.name;
   const m = fname.match(/\d{7,}/);
   const autoId = m ? m[0] : Date.now().toString().slice(-7);
